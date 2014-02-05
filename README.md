@@ -48,4 +48,4 @@ As of now, I am only including a Makefile until the project is more complete. I 
 
 **Bugs:**
 
-* Desktops status is not always updated.e
+* Desktops status is not always updated.
