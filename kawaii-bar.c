@@ -1,4 +1,6 @@
-#include <gtk/gtk.h>
+//#include <gtk/gtk.h>
+#include <gtk-3.0/gtk/gtk.h>
+#include <gdk/gdk.h>
 #include <cairo.h>  // use <pangocairo.h> instead of pango AND cairo ???
 #include <pango/pango.h>
 #include <string.h> // for strtok()
@@ -28,13 +30,6 @@ static char Desktops[] = {'O','f','f','f','f','f','f','f','f','f'};
 char *d[10] = {"1","2","3","4","5","6","7","8","9","0"};
 
 typedef struct {
-	double r;
-	double g;
-	double b;
-	double a;
-} CairoColor;
-
-typedef struct {
 	char *hour;
 	char *minute;
 	char *dayofweek;
@@ -46,13 +41,12 @@ typedef struct {
 
 static void draw(cairo_t *cr);
 static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer user_data);
-static CairoColor getcolor(double r, double g, double b, double a);
 static void init_window(GtkWidget *window);
 static gboolean on_update(GtkWidget *widget);
 static void draw_desktops(cairo_t *cr);
 static void draw_clock(cairo_t *cr);
 static int textw(cairo_t *cr, char *text);
-static void draw_text(cairo_t *cr, char *text, gint x, gint y, CairoColor color);
+static void draw_text(cairo_t *cr, char *text, gint x, gint y, GdkRGBA color);
 static void get_desktop_status(void);
 static void draw_stats(cairo_t *cr);
 static void draw_arch_icon(cairo_t *cr);
@@ -60,14 +54,6 @@ static void draw_arch_icon(cairo_t *cr);
 /* init stats stuff */
 FILE *infile;
 long jif1, jif2, jif3, jif4, lnum1, lnum2, lnum3, lnum4;
-
-static CairoColor
-getcolor(double r, double g, double b, double a)
-{
-	CairoColor c;
-	c.r = r / 255; c.g = g / 255; c.b = b / 255; c.a = a / 100;
-	return c;
-}
 
 typedef struct {
 	PangoLayout *plo;
@@ -124,12 +110,12 @@ init_window(GtkWidget *window)
 static void
 draw(cairo_t *cr)
 {
-	CairoColor c;
-	c = getcolor(0,0,0,100);
+	GdkRGBA c;
+	gdk_rgba_parse(&c, "#000000");
 	// temporary fix, need to init elsewhere.
 	if(!dc.plo)
 		dc.plo = pango_cairo_create_layout(cr);
-	cairo_set_source_rgba(cr, c.r, c.g, c.b, c.a);
+	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_paint(cr);
 	
 	draw_arch_icon(cr);
@@ -139,10 +125,11 @@ draw(cairo_t *cr)
 }
 
 static void
-draw_text(cairo_t *cr, char *text, gint x, gint y, CairoColor color)
+draw_text(cairo_t *cr, char *text, gint x, gint y, GdkRGBA color)
 {
 	pango_layout_set_text(dc.plo, text, -1);
-	cairo_set_source_rgba(cr, color.r, color.g, color.b, color.a);
+	//cairo_set_source_rgba(cr, color->red, color->green, color->blue, color->alpha);
+	cairo_set_source_rgba(cr, color.red, color.green, color.blue, color.alpha);
 	cairo_move_to(cr, x, y);
 	pango_cairo_show_layout(cr, dc.plo);
 }
@@ -151,9 +138,9 @@ draw_text(cairo_t *cr, char *text, gint x, gint y, CairoColor color)
 static void
 draw_line(cairo_t *cr)
 {
-	CairoColor c;
-	c = getcolor(0, 197, 205, 100);
-	cairo_set_source_rgba(cr, c.r, c.g, c.b, c.a);
+	GdkRGBA c;
+	gdk_rgba_parse(&c, "#00C5CD");
+	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_set_line_width(cr, 3);
 	cairo_move_to(cr, dc.x, 20);
 
@@ -184,7 +171,7 @@ static void
 draw_desktops(cairo_t *cr)
 {
 	int i;
-	CairoColor c;
+	GdkRGBA c;
 	dc.x = 25;
 	int y = 0;
 
@@ -194,18 +181,18 @@ draw_desktops(cairo_t *cr)
 		char dd = *(d[i]);
 		dc.w = textw(cr, d[i]);
 		if(Desktops[i] == 'O') {
-			c = getcolor(255,255,255,100);
+			gdk_rgba_parse(&c, "#ffffff");
 			draw_line(cr);
 		}
 		else if(Desktops[i] == 'F') {
-			c = getcolor(100, 100, 100, 100);
+			gdk_rgba_parse(&c, "#646464");
 			draw_line(cr);
 		}
 		else if(Desktops[i] == 'o') {
-			c = getcolor(255, 255, 255, 100);
+			gdk_rgba_parse(&c, "#ffffff");
 		}
 		else {
-			c = getcolor(100, 100, 100, 100);
+			gdk_rgba_parse(&c, "#646464");
 		}
 		
 		setfont(cr, "Sans 12");
@@ -310,14 +297,14 @@ static void
 draw_clock(cairo_t *cr)
 {
 	Clock clock = initclock();
-	CairoColor c;
+	GdkRGBA c;
 
 	dc.x = 612;
 
 	setfont(cr, "DIN condensed 10");
 	pango_layout_set_text(dc.plo, clock.ampm, -1);
-	c = getcolor(23, 147, 209, 100);
-	cairo_set_source_rgb(cr, c.r, c.g, c.b);
+	gdk_rgba_parse(&c, "#1793d1");
+	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	if(strcmp(clock.ampm, "AM") == 0)
 		cairo_move_to(cr, dc.x, -3);
 	else
@@ -329,8 +316,8 @@ draw_clock(cairo_t *cr)
 
 	setfont(cr, "Agency FB Bold 18");
 	pango_layout_set_text(dc.plo, clock.hour , -1);
-	c = getcolor(23, 147, 209, 100);
-	cairo_set_source_rgb(cr, c.r, c.g, c.b);
+	gdk_rgba_parse(&c, "#1793d1");
+	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_move_to(cr, dc.x, -4);
 	pango_cairo_show_layout(cr, dc.plo);
 
@@ -347,12 +334,14 @@ draw_clock(cairo_t *cr)
 
 	setfont(cr, "DIN Condensed 8");
 	pango_layout_set_text(dc.plo, clock.dayofweek, -1);
-	cairo_set_source_rgb(cr, 1, 1, 1);
+	gdk_rgba_parse(&c, "#ffffff");
+	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);	
 	cairo_move_to(cr, dc.x, -1);
 	pango_cairo_show_layout(cr, dc.plo);
 
 	pango_layout_set_text(dc.plo, clock.dayofmonth, -1);
-	cairo_set_source_rgb(cr, 1, 1, 1);
+	gdk_rgba_parse(&c, "#ffffff");
+	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_move_to(cr, dc.x, 9);
 	pango_cairo_show_layout(cr, dc.plo);
 
@@ -361,14 +350,14 @@ draw_clock(cairo_t *cr)
 	dc.x += dc.w + 7;
 
 	pango_layout_set_text(dc.plo, clock.year, -1);
-	c = getcolor(23, 147, 209, 100);
-	cairo_set_source_rgb(cr, c.r, c.g, c.b);
+	gdk_rgba_parse(&c, "#1793d1");
+	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_move_to(cr, dc.x, -1);	// was -3 with din font
 	pango_cairo_show_layout(cr, dc.plo);
 
 	pango_layout_set_text(dc.plo, clock.month, -1);
-	c = getcolor(23, 147, 209, 100);
-	cairo_set_source_rgb(cr, c.r, c.g, c.b);
+	gdk_rgba_parse(&c, "#1793d1");
+	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_move_to(cr, dc.x, 9);	// was 7 @ 20px height
 	pango_cairo_show_layout(cr, dc.plo);
 
@@ -383,13 +372,13 @@ draw_clock(cairo_t *cr)
 static void
 draw_progress_bar(cairo_t *cr, int percent)
 //draw_progress_bar(cairo_t *cr, int x, int y, int w, int percent)
-{	
+{
+	GdkRGBA fg, bg;
+
 	cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
 	cairo_set_line_width(cr, 3);
-	// change variable names here...
-	CairoColor c, d;
-	c = getcolor(0, 136, 204, 100);
-	d = getcolor(75, 75, 75, 100);
+	gdk_rgba_parse(&fg, "#0088cc");
+	gdk_rgba_parse(&bg, "#4b4b4b");
 
 	// testing line to make sure percent isnt over 100
 	percent = percent > 100 ? 100 : percent;
@@ -398,7 +387,7 @@ draw_progress_bar(cairo_t *cr, int percent)
 	// can possibly fix by changing line cap ???
 	if(percent != 100) {
 	// draw bar from progress to end
-		cairo_set_source_rgba(cr, d.r, d.g, d.b, d.a);
+		cairo_set_source_rgba(cr, bg.red, bg.green, bg.blue, bg.alpha);
 		cairo_move_to(cr, dc.x + (PROGRESS_BAR_W * ((float)percent / 100)), 18);
 		cairo_line_to(cr, dc.x + PROGRESS_BAR_W , 18);
 		cairo_stroke(cr);
@@ -406,7 +395,7 @@ draw_progress_bar(cairo_t *cr, int percent)
 
 	if(percent != 0) {
 	// draw bar from beginning to progress
-		cairo_set_source_rgba(cr, c.r, c.g, c.b, c.a);
+		cairo_set_source_rgba(cr, fg.red, fg.green, fg.blue, fg.alpha);
 		//cairo_set_line_width(cr, 3);
 		cairo_move_to(cr, dc.x, 18);
 		cairo_line_to(cr, dc.x + PROGRESS_BAR_W * ((float)percent / 100), 18);
@@ -417,8 +406,8 @@ draw_progress_bar(cairo_t *cr, int percent)
 static void
 draw_stats(cairo_t *cr)
 {
-	CairoColor c;
-	c = getcolor(0,197,205,100);
+	GdkRGBA c;
+	gdk_rgba_parse(&c, "#00c5cd");
 
 	dc.x = 950;
 	int y = 0;
@@ -466,7 +455,7 @@ draw_stats(cairo_t *cr)
 
 	setfont(cr, "Sans 9");
 	pango_layout_set_text(dc.plo, buf, -1);
-	cairo_set_source_rgba(cr, c.r, c.g, c.b, c.a);
+	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_move_to(cr, dc.x, y);
 	pango_cairo_show_layout(cr, dc.plo);
 	
@@ -499,7 +488,7 @@ draw_stats(cairo_t *cr)
 	// DRAW CPU
 	setfont(cr, "Sans 9");
 	pango_layout_set_text(dc.plo, buf, -1);
-	cairo_set_source_rgba(cr, c.r, c.g, c.b, c.a);
+	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_move_to(cr, dc.x, y);
 	pango_cairo_show_layout(cr, dc.plo);
 
@@ -527,7 +516,7 @@ draw_stats(cairo_t *cr)
 	// DRAW MEMORY
 	//dc.x = 925;
 	pango_layout_set_text(dc.plo, buf, -1);
-	cairo_set_source_rgba(cr, c.r, c.g, c.b, c.a);
+	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_move_to(cr, dc.x, y);
 	pango_cairo_show_layout(cr, dc.plo);
 
@@ -578,7 +567,7 @@ draw_stats(cairo_t *cr)
 
 	// DRAW BATTERY STATUS
 	pango_layout_set_text(dc.plo, buf, -1);
-	cairo_set_source_rgba(cr, c.r, c.g, c.b, c.a);
+	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_move_to(cr, dc.x, y);
 	pango_cairo_show_layout(cr, dc.plo);
 
