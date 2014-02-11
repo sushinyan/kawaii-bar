@@ -1,4 +1,3 @@
-//#include <gtk/gtk.h>
 #include <gtk-3.0/gtk/gtk.h>
 #include <gdk/gdk.h>
 #include <cairo.h>  // use <pangocairo.h> instead of pango AND cairo ???
@@ -15,15 +14,7 @@
 #include <time.h>
 #include <alsa/asoundlib.h>
 
-/* some constants - to be moved to header file */
-#define BARW		1366		/* width of bar in pixels */
-#define BARH		22		/* height of bar in pixels */
-#define MONW		1366		/* horizontal resolution of monitor */
-#define MONH		768		/* vertical resolution of monitor */
-
-#define SYSTRAY_W	20		/* width of system tray in pixels, 0 if none */
-#define PROGRESS_BAR_W	50		/* width of progress bar in pixels */
-static gboolean topbar = TRUE;		/* TRUE for bar to be displayed at top of screen */
+#include "kawaii-bar.h"
 
 /* init desktops state */
 static char Desktops[] = {'O','f','f','f','f','f','f','f','f','f'};
@@ -91,6 +82,8 @@ init_window(GtkWidget *window)
 {
 	GdkScreen *screen;
 	GdkVisual *visual;
+	int width, height;
+
 	gtk_widget_set_app_paintable(window, TRUE);
 	screen = gdk_screen_get_default();
 	visual = gdk_screen_get_rgba_visual(screen);
@@ -101,17 +94,20 @@ init_window(GtkWidget *window)
 	gtk_window_set_keep_above(GTK_WINDOW(window), TRUE);
 	gtk_window_set_type_hint(GTK_WINDOW(window), GDK_WINDOW_TYPE_HINT_DOCK);
 
+	width = gdk_screen_get_width(screen);
+	height = gdk_screen_get_height(screen);
+
 	if(topbar)
-		gtk_window_move(GTK_WINDOW(window), (MONW - BARW) / 2, 0);
+		gtk_window_move(GTK_WINDOW(window), (width - BARW) / 2, 0);
 	else
-		gtk_window_move(GTK_WINDOW(window), (MONW - BARW) / 2, MONH - BARH);
+		gtk_window_move(GTK_WINDOW(window), (width - BARW) / 2, height - BARH);
 }
 
 static void
 draw(cairo_t *cr)
 {
 	GdkRGBA c;
-	gdk_rgba_parse(&c, "#000000");
+	gdk_rgba_parse(&c, bgcolor);
 	// temporary fix, need to init elsewhere.
 	if(!dc.plo)
 		dc.plo = pango_cairo_create_layout(cr);
@@ -139,7 +135,7 @@ static void
 draw_line(cairo_t *cr)
 {
 	GdkRGBA c;
-	gdk_rgba_parse(&c, "#00C5CD");
+	gdk_rgba_parse(&c, desktop_line);
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_set_line_width(cr, 3);
 	cairo_move_to(cr, dc.x, 20);
@@ -181,18 +177,18 @@ draw_desktops(cairo_t *cr)
 		char dd = *(d[i]);
 		dc.w = textw(cr, d[i]);
 		if(Desktops[i] == 'O') {
-			gdk_rgba_parse(&c, "#ffffff");
+			gdk_rgba_parse(&c, desktop_sel);
 			draw_line(cr);
 		}
 		else if(Desktops[i] == 'F') {
-			gdk_rgba_parse(&c, "#646464");
+			gdk_rgba_parse(&c, desktop_norm);
 			draw_line(cr);
 		}
 		else if(Desktops[i] == 'o') {
-			gdk_rgba_parse(&c, "#ffffff");
+			gdk_rgba_parse(&c, desktop_sel);
 		}
 		else {
-			gdk_rgba_parse(&c, "#646464");
+			gdk_rgba_parse(&c, desktop_norm);
 		}
 		
 		setfont(cr, "Sans 12");
@@ -303,7 +299,7 @@ draw_clock(cairo_t *cr)
 
 	setfont(cr, "DIN condensed 10");
 	pango_layout_set_text(dc.plo, clock.ampm, -1);
-	gdk_rgba_parse(&c, "#1793d1");
+	gdk_rgba_parse(&c, clock_primary);
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	if(strcmp(clock.ampm, "AM") == 0)
 		cairo_move_to(cr, dc.x, -3);
@@ -316,7 +312,6 @@ draw_clock(cairo_t *cr)
 
 	setfont(cr, "Agency FB Bold 18");
 	pango_layout_set_text(dc.plo, clock.hour , -1);
-	gdk_rgba_parse(&c, "#1793d1");
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_move_to(cr, dc.x, -4);
 	pango_cairo_show_layout(cr, dc.plo);
@@ -325,7 +320,8 @@ draw_clock(cairo_t *cr)
 	dc.x += dc.w + 5;
 
 	pango_layout_set_text(dc.plo, clock.minute, -1);
-	cairo_set_source_rgb(cr, 1, 1, 1);
+	gdk_rgba_parse(&c, clock_secondary);
+	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_move_to(cr, dc.x, -4);
 	pango_cairo_show_layout(cr, dc.plo);
 
@@ -334,13 +330,11 @@ draw_clock(cairo_t *cr)
 
 	setfont(cr, "DIN Condensed 8");
 	pango_layout_set_text(dc.plo, clock.dayofweek, -1);
-	gdk_rgba_parse(&c, "#ffffff");
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);	
 	cairo_move_to(cr, dc.x, -1);
 	pango_cairo_show_layout(cr, dc.plo);
 
 	pango_layout_set_text(dc.plo, clock.dayofmonth, -1);
-	gdk_rgba_parse(&c, "#ffffff");
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_move_to(cr, dc.x, 9);
 	pango_cairo_show_layout(cr, dc.plo);
@@ -350,13 +344,12 @@ draw_clock(cairo_t *cr)
 	dc.x += dc.w + 7;
 
 	pango_layout_set_text(dc.plo, clock.year, -1);
-	gdk_rgba_parse(&c, "#1793d1");
+	gdk_rgba_parse(&c, clock_primary);
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_move_to(cr, dc.x, -1);	// was -3 with din font
 	pango_cairo_show_layout(cr, dc.plo);
 
 	pango_layout_set_text(dc.plo, clock.month, -1);
-	gdk_rgba_parse(&c, "#1793d1");
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_move_to(cr, dc.x, 9);	// was 7 @ 20px height
 	pango_cairo_show_layout(cr, dc.plo);
@@ -377,8 +370,8 @@ draw_progress_bar(cairo_t *cr, int percent)
 
 	cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
 	cairo_set_line_width(cr, 3);
-	gdk_rgba_parse(&fg, "#0088cc");
-	gdk_rgba_parse(&bg, "#4b4b4b");
+	gdk_rgba_parse(&fg, progress_fg);
+	gdk_rgba_parse(&bg, progress_bg);
 
 	// testing line to make sure percent isnt over 100
 	percent = percent > 100 ? 100 : percent;
@@ -407,7 +400,7 @@ static void
 draw_stats(cairo_t *cr)
 {
 	GdkRGBA c;
-	gdk_rgba_parse(&c, "#00c5cd");
+	gdk_rgba_parse(&c, stats_text);
 
 	dc.x = 950;
 	int y = 0;

@@ -28,7 +28,7 @@ As of now, I am only including a Makefile until the project is more complete. I 
 	$ make
 	# make install
 
-* In order to allocate space for the bar to be displayed, simply add `bspc config top_padding xx` to your bspwm config file (~/.config/bspwm/bspwmrc), where "xx" equals the bar height - border width in pixels. If you prefer the bar to be at the bottom of the screen, change the TOPBAR global to FALSE in kawaii-bar.c and use "bottom\_padding" instead of "top\_padding" in your bspwmrc.
+* In order to allocate space for the bar to be displayed, simply add `bspc config top_padding xx` to your bspwm config file (~/.config/bspwm/bspwmrc), where "xx" equals the bar height - border width in pixels. If you prefer the bar to be at the bottom of the screen, change the TOPBAR global to FALSE in kawaii-bar.h and use "bottom\_padding" instead of "top\_padding" in your bspwmrc.
 
 * **Important:** Status icons need to be manually copied  to "/usr/share/icons/kawaii-bar/". The path is hardcoded right now but will be able to be changed in the near future.
 
@@ -38,7 +38,7 @@ As of now, I am only including a Makefile until the project is more complete. I 
 
 * Major cleanup of existing code.
 * Rework code to allow for customization.
-* Move globals and user-defined variables to a header file.
+* ~~Move globals and user-defined variables to a header file.~~
 * Remove stats monitoring -> external program?
 * Read tiling state from FIFO -- Ltiled or Lmonocle indicator.
 * Add struct for desktop status and mode.
