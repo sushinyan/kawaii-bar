@@ -16,12 +16,16 @@ As stated above, this is an alpha release. Most of the code isn't very clean (ye
 
 **Installation:**
 
-Before installing, you must first setup a FIFO and have BSPWM write to it by adding the following  lines to your ~/.xinitrc :
+Before installing, you must first setup a FIFO for bspwm to  write to by adding the following lines to your ~/.xinitrc:
 
     export PANEL_FIFO="/tmp/panel-fifo"
     [ -e "$PANEL_FIFO" ] && rm "$PANEL_FIFO"
     mkfifo "$PANEL_FIFO"
-    exec bspwm -s "$PANEL_FIFO"
+    exec bspwm
+
+You must also make bspwm write to the FIFO by adding another line to your bspwm config file:
+
+    bspc control --subscribe > $PANEL_FIFO &
 
 As of now, I am only including a Makefile until the project is more complete. I will include an Arch Linux PKGBUILD in future builds, but for now you can simply run:
 
@@ -48,4 +52,5 @@ As of now, I am only including a Makefile until the project is more complete. I 
 
 **Bugs:**
 
-* Desktops status is not always updated.
+* Desktops status is not shown correctly if updated more than once per second.
+* Desktops status does not update automatically (without external event).

@@ -1,3 +1,4 @@
+/* kawaii-bar.h */
 
 #define BARW		1366		/* width of bar in pixels */
 #define BARH		22		/* height of bar in pixels */
@@ -25,3 +26,6 @@ static const char *clock_secondary = "#ffffff";
 /* fonts */
 static const char *font	= "Sans 12";
 static const char *stats_font = "Sans 9";
+
+static const char *clock_font_lg = "Agency FB Bold 18";
+static const char *clock_font_sm = "DIN condensed 8";

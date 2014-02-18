@@ -17,8 +17,8 @@
 #include "kawaii-bar.h"
 
 /* init desktops state */
-static char Desktops[] = {'O','f','f','f','f','f','f','f','f','f'};
-char *d[10] = {"1","2","3","4","5","6","7","8","9","0"};
+static char desktop_status[] = {'O','f','f','f','f','f','f','f','f','f'};
+char *desktops[10] = {"1","2","3","4","5","6","7","8","9","0"};
 
 typedef struct {
 	char *hour;
@@ -41,6 +41,7 @@ static void draw_text(cairo_t *cr, char *text, gint x, gint y, GdkRGBA color);
 static void get_desktop_status(void);
 static void draw_stats(cairo_t *cr);
 static void draw_arch_icon(cairo_t *cr);
+static Clock initclock(void);
 
 /* init stats stuff */
 FILE *infile;
@@ -97,10 +98,7 @@ init_window(GtkWidget *window)
 	width = gdk_screen_get_width(screen);
 	height = gdk_screen_get_height(screen);
 
-	if(topbar)
-		gtk_window_move(GTK_WINDOW(window), (width - BARW) / 2, 0);
-	else
-		gtk_window_move(GTK_WINDOW(window), (width - BARW) / 2, height - BARH);
+	gtk_window_move(GTK_WINDOW(window), (width - BARW) / 2, topbar ? 0 : height - BARH);
 }
 
 static void
@@ -140,7 +138,7 @@ draw_line(cairo_t *cr)
 	cairo_set_line_width(cr, 3);
 	cairo_move_to(cr, dc.x, 20);
 
-	/* lazy fix to force monospace */
+	/* lazy fix to force monospace -- probably not needed anymore */
 	dc.w = textw(cr, "X");
 
 	cairo_line_to(cr, dc.x + dc.w, 20);
@@ -173,30 +171,19 @@ draw_desktops(cairo_t *cr)
 
 	get_desktop_status();
 
-	for(i = 0; i < 10; i++) {
-		char dd = *(d[i]);
-		dc.w = textw(cr, d[i]);
-		if(Desktops[i] == 'O') {
-			gdk_rgba_parse(&c, desktop_sel);
-			draw_line(cr);
-		}
-		else if(Desktops[i] == 'F') {
-			gdk_rgba_parse(&c, desktop_norm);
-			draw_line(cr);
-		}
-		else if(Desktops[i] == 'o') {
-			gdk_rgba_parse(&c, desktop_sel);
-		}
-		else {
-			gdk_rgba_parse(&c, desktop_norm);
-		}
-		
-		setfont(cr, "Sans 12");
-		draw_text(cr, d[i], dc.x, y, c);
+	setfont(cr, "Sans 12");
 
-		// temporary fix to force monospace
-		int offw = textw(cr, "X");
-		dc.x += offw;
+	for(i = 0; i < 10; i++) {
+		char dd = *(desktops[i]);
+
+		gdk_rgba_parse(&c, tolower(desktop_status[i]) == 'o' ? desktop_sel : desktop_norm);
+		if(desktop_status[i] == 'F' || desktop_status[i] == 'O')
+			draw_line(cr);
+		draw_text(cr, desktops[i], dc.x, y, c);
+		//pango_layout_get_pixel_size(dc.plo, &dc.w, NULL);
+		dc.w = textw(cr, desktops[i]) + 2;
+
+		dc.x += dc.w;
 	}
 }
 
@@ -215,8 +202,8 @@ get_desktop_status(void)
 	FD_ZERO(&set);
 	FD_SET(fd, &set);
 
-	timeout.tv_sec = 0;
-	timeout.tv_usec = 500000;
+	timeout.tv_sec = 1;
+	timeout.tv_usec = 0;
 
 	rv = select(fd + 1, &set, NULL, NULL, &timeout);
 	if(rv > 0) {
@@ -238,7 +225,7 @@ get_desktop_status(void)
 			tmp[i++] = &test[0];
 			char c;
 			c = *(tmp[i - 1]);
-			Desktops[i-1] = c;
+			desktop_status[i-1] = c;
 		}
 	}
 }
@@ -251,6 +238,7 @@ textw(cairo_t *cr, char *text)
 	PangoRectangle r;
 	pango_layout_set_text(dc.plo, text, len);
 	pango_layout_get_extents(dc.plo, &r, 0);
+
 	return r.width / PANGO_SCALE;
 }
 
@@ -289,26 +277,60 @@ initclock(void)
 	return clock;
 }
 
+static int
+get_clock_w(cairo_t *cr) {
+	// testing code to calculate width of clock
+	int x, w;
+
+	w = 0;
+	// init this globally -- no need to init twice
+	Clock clock = initclock();
+
+	setfont(cr, "DIN condensed 8");
+	pango_layout_set_text(dc.plo, clock.ampm, -1);
+	pango_layout_get_pixel_size(dc.plo, &x, NULL);
+	w += x;
+
+	setfont(cr, "Agency FB Bold 18");
+	pango_layout_set_text(dc.plo, clock.hour , -1);
+	pango_layout_get_pixel_size(dc.plo, &x, NULL);
+	w += x;
+
+	pango_layout_set_text(dc.plo, clock.minute, -1);
+	pango_layout_get_pixel_size(dc.plo, &x, NULL);
+	w += x;
+
+	setfont(cr, "DIN Condensed 8");
+	pango_layout_set_text(dc.plo, clock.dayofweek, -1);
+	pango_layout_get_pixel_size(dc.plo, &x, NULL);
+	w += x;
+
+	pango_layout_set_text(dc.plo, clock.month, -1);
+	pango_layout_get_pixel_size(dc.plo, &x, NULL);
+	w += x;
+
+	w += 16; // padding
+
+	return w;
+}
+
 static void
 draw_clock(cairo_t *cr)
 {
 	Clock clock = initclock();
 	GdkRGBA c;
 
-	dc.x = 612;
+	dc.x = (BARW - get_clock_w(cr)) / 2;
 
-	setfont(cr, "DIN condensed 10");
+	setfont(cr, "DIN condensed 8");
 	pango_layout_set_text(dc.plo, clock.ampm, -1);
 	gdk_rgba_parse(&c, clock_primary);
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
-	if(strcmp(clock.ampm, "AM") == 0)
-		cairo_move_to(cr, dc.x, -3);
-	else
-		cairo_move_to(cr, dc.x, 7);
+	cairo_move_to(cr, dc.x, strcmp(clock.ampm, "AM") == 0 ? -3 : 9);
 	pango_cairo_show_layout(cr, dc.plo);
 
 	dc.w = textw(cr, clock.ampm);
-	dc.x += dc.w + 2;
+	dc.x += dc.w + 4;
 
 	setfont(cr, "Agency FB Bold 18");
 	pango_layout_set_text(dc.plo, clock.hour , -1);
@@ -317,7 +339,7 @@ draw_clock(cairo_t *cr)
 	pango_cairo_show_layout(cr, dc.plo);
 
 	dc.w = textw(cr, clock.hour);
-	dc.x += dc.w + 5;
+	dc.x += dc.w + 4;
 
 	pango_layout_set_text(dc.plo, clock.minute, -1);
 	gdk_rgba_parse(&c, clock_secondary);
@@ -326,7 +348,7 @@ draw_clock(cairo_t *cr)
 	pango_cairo_show_layout(cr, dc.plo);
 
 	dc.w = textw(cr, clock.minute);
-	dc.x += dc.w + 7;
+	dc.x += dc.w + 4;
 
 	setfont(cr, "DIN Condensed 8");
 	pango_layout_set_text(dc.plo, clock.dayofweek, -1);
@@ -341,17 +363,17 @@ draw_clock(cairo_t *cr)
 
 	// day of week string is always longer than day of month
 	dc.w = textw(cr, clock.dayofweek);
-	dc.x += dc.w + 7;
+	dc.x += dc.w + 4;
 
 	pango_layout_set_text(dc.plo, clock.year, -1);
 	gdk_rgba_parse(&c, clock_primary);
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
-	cairo_move_to(cr, dc.x, -1);	// was -3 with din font
+	cairo_move_to(cr, dc.x, -1);
 	pango_cairo_show_layout(cr, dc.plo);
 
 	pango_layout_set_text(dc.plo, clock.month, -1);
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
-	cairo_move_to(cr, dc.x, 9);	// was 7 @ 20px height
+	cairo_move_to(cr, dc.x, 9);
 	pango_cairo_show_layout(cr, dc.plo);
 
 	dc.w = textw(cr, clock.month);
@@ -469,7 +491,6 @@ draw_stats(cairo_t *cr)
 
 	// GET CPU
 	int num;
-	//char buf[20];
 	infile = fopen("/proc/stat", "r");
 	fscanf(infile, "cpu %ld %ld %ld %ld", &lnum1, &lnum2, &lnum3, &lnum4); fclose(infile);
 	num = lnum4 > jif4 ? (int)((100 * ((lnum1 - jif1) + (lnum2 - jif2) + (lnum3 - jif3))) / (lnum4 - jif4)) : 0;
@@ -507,7 +528,6 @@ draw_stats(cairo_t *cr)
         sprintf(buf, "%02d%%", num);
 
 	// DRAW MEMORY
-	//dc.x = 925;
 	pango_layout_set_text(dc.plo, buf, -1);
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_move_to(cr, dc.x, y);
