@@ -1,6 +1,6 @@
 #include <gtk-3.0/gtk/gtk.h>
 #include <gdk/gdk.h>
-#include <cairo.h>  // use <pangocairo.h> instead of pango AND cairo ???
+#include <cairo.h>
 #include <pango/pango.h>
 #include <string.h> // for strtok()
 #include <stdlib.h> // for malloc()
@@ -46,6 +46,8 @@ static Clock initclock(void);
 /* init stats stuff */
 FILE *infile;
 long jif1, jif2, jif3, jif4, lnum1, lnum2, lnum3, lnum4;
+
+char *tiling_state;
 
 typedef struct {
 	PangoLayout *plo;
@@ -185,6 +187,9 @@ draw_desktops(cairo_t *cr)
 
 		dc.x += dc.w;
 	}
+	dc.x += 5; // padding for tiling status
+	gdk_rgba_parse(&c, desktop_sel);
+	draw_text(cr, tiling_state, dc.x, y, c);
 }
 
 static void
@@ -227,6 +232,8 @@ get_desktop_status(void)
 			c = *(tmp[i - 1]);
 			desktop_status[i-1] = c;
 		}
+		// last line is tiling state
+		tiling_state = strtok_r(NULL, ":", &pch);
 	}
 }
 
@@ -385,14 +392,13 @@ draw_clock(cairo_t *cr)
 }
 
 static void
-draw_progress_bar(cairo_t *cr, int percent)
-//draw_progress_bar(cairo_t *cr, int x, int y, int w, int percent)
+draw_progress_bar(cairo_t *cr, int percent, gboolean urgent)
 {
 	GdkRGBA fg, bg;
 
 	cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
 	cairo_set_line_width(cr, 3);
-	gdk_rgba_parse(&fg, progress_fg);
+	gdk_rgba_parse(&fg, urgent ? progress_urg : progress_fg);
 	gdk_rgba_parse(&bg, progress_bg);
 
 	// testing line to make sure percent isnt over 100
@@ -475,7 +481,7 @@ draw_stats(cairo_t *cr)
 	pango_cairo_show_layout(cr, dc.plo);
 	
 	// DRAW VOLUME PROGRESS BAR
-	draw_progress_bar(cr, !(mute) ? 0 : (int)vol * 100 / (int)max);
+	draw_progress_bar(cr, !(mute) ? 0 : (int)vol * 100 / (int)max, FALSE);
 	dc.x += PROGRESS_BAR_W + 10; // adjust dc.x for progress bar + 10px pad
 
 	// DRAW CPU ICON
@@ -507,7 +513,7 @@ draw_stats(cairo_t *cr)
 	pango_cairo_show_layout(cr, dc.plo);
 
 	// need dc.x and dc.w set in order to draw progress bar
-	draw_progress_bar(cr, num);
+	draw_progress_bar(cr, num, FALSE);
 
 	dc.x += PROGRESS_BAR_W + 10; // adjust dc.x for progress bar + 10px pad
 
@@ -534,7 +540,7 @@ draw_stats(cairo_t *cr)
 	pango_cairo_show_layout(cr, dc.plo);
 
 	dc.w = textw(cr, buf);
-	draw_progress_bar(cr, num);
+	draw_progress_bar(cr, num, FALSE);
 
 	dc.x += PROGRESS_BAR_W + 10; // adjust for progress bar width
 
@@ -585,7 +591,7 @@ draw_stats(cairo_t *cr)
 	pango_cairo_show_layout(cr, dc.plo);
 
 	dc.w = textw(cr, buf);
-	draw_progress_bar(cr, perc);
+	draw_progress_bar(cr, perc, FALSE);
 
 	dc.x += PROGRESS_BAR_W + 10;
 }
