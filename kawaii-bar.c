@@ -173,7 +173,7 @@ draw_desktops(cairo_t *cr)
 
 	get_desktop_status();
 
-	setfont(cr, "Sans 12");
+	setfont(cr, font);
 
 	for(i = 0; i < 10; i++) {
 		char dd = *(desktops[i]);
@@ -188,6 +188,7 @@ draw_desktops(cairo_t *cr)
 		dc.x += dc.w;
 	}
 	dc.x += 5; // padding for tiling status
+	setfont(cr, stats_font);
 	gdk_rgba_parse(&c, desktop_sel);
 	draw_text(cr, tiling_state, dc.x, y, c);
 }
@@ -277,7 +278,6 @@ initclock(void)
 	strcpy(clock.dayofweek, buf);
 	strftime(buf, 12, "%Y", localtime(&current));
 	strcpy(clock.year, buf);
-	strcat(clock.year, " CE");
 	strftime(buf, 12, "%p", localtime(&current));
 	strcpy(clock.ampm, buf);
 
@@ -293,12 +293,12 @@ get_clock_w(cairo_t *cr) {
 	// init this globally -- no need to init twice
 	Clock clock = initclock();
 
-	setfont(cr, "DIN condensed 8");
+	setfont(cr, clock_font_sm);
 	pango_layout_set_text(dc.plo, clock.ampm, -1);
 	pango_layout_get_pixel_size(dc.plo, &x, NULL);
 	w += x;
 
-	setfont(cr, "Agency FB Bold 18");
+	setfont(cr, clock_font_lg);
 	pango_layout_set_text(dc.plo, clock.hour , -1);
 	pango_layout_get_pixel_size(dc.plo, &x, NULL);
 	w += x;
@@ -307,7 +307,7 @@ get_clock_w(cairo_t *cr) {
 	pango_layout_get_pixel_size(dc.plo, &x, NULL);
 	w += x;
 
-	setfont(cr, "DIN Condensed 8");
+	setfont(cr, clock_font_sm);
 	pango_layout_set_text(dc.plo, clock.dayofweek, -1);
 	pango_layout_get_pixel_size(dc.plo, &x, NULL);
 	w += x;
@@ -329,17 +329,17 @@ draw_clock(cairo_t *cr)
 
 	dc.x = (BARW - get_clock_w(cr)) / 2;
 
-	setfont(cr, "DIN condensed 8");
+	setfont(cr, clock_font_sm);
 	pango_layout_set_text(dc.plo, clock.ampm, -1);
 	gdk_rgba_parse(&c, clock_primary);
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
-	cairo_move_to(cr, dc.x, strcmp(clock.ampm, "AM") == 0 ? -3 : 9);
+	cairo_move_to(cr, dc.x, strcmp(clock.ampm, "AM") == 0 ? -3 : 8);
 	pango_cairo_show_layout(cr, dc.plo);
 
 	dc.w = textw(cr, clock.ampm);
 	dc.x += dc.w + 4;
 
-	setfont(cr, "Agency FB Bold 18");
+	setfont(cr, clock_font_lg);
 	pango_layout_set_text(dc.plo, clock.hour , -1);
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_move_to(cr, dc.x, -4);
@@ -357,15 +357,15 @@ draw_clock(cairo_t *cr)
 	dc.w = textw(cr, clock.minute);
 	dc.x += dc.w + 4;
 
-	setfont(cr, "DIN Condensed 8");
+	setfont(cr, clock_font_sm);
 	pango_layout_set_text(dc.plo, clock.dayofweek, -1);
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);	
-	cairo_move_to(cr, dc.x, -1);
+	cairo_move_to(cr, dc.x, -3);
 	pango_cairo_show_layout(cr, dc.plo);
 
 	pango_layout_set_text(dc.plo, clock.dayofmonth, -1);
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
-	cairo_move_to(cr, dc.x, 9);
+	cairo_move_to(cr, dc.x, 8);
 	pango_cairo_show_layout(cr, dc.plo);
 
 	// day of week string is always longer than day of month
@@ -375,12 +375,12 @@ draw_clock(cairo_t *cr)
 	pango_layout_set_text(dc.plo, clock.year, -1);
 	gdk_rgba_parse(&c, clock_primary);
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
-	cairo_move_to(cr, dc.x, -1);
+	cairo_move_to(cr, dc.x, -3);
 	pango_cairo_show_layout(cr, dc.plo);
 
 	pango_layout_set_text(dc.plo, clock.month, -1);
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
-	cairo_move_to(cr, dc.x, 9);
+	cairo_move_to(cr, dc.x, 8);
 	pango_cairo_show_layout(cr, dc.plo);
 
 	dc.w = textw(cr, clock.month);
@@ -474,7 +474,7 @@ draw_stats(cairo_t *cr)
         if(handle)
                 snd_mixer_close(handle);
 
-	setfont(cr, "Sans 9");
+	setfont(cr, stats_font);
 	pango_layout_set_text(dc.plo, buf, -1);
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_move_to(cr, dc.x, y);
@@ -506,7 +506,6 @@ draw_stats(cairo_t *cr)
 	dc.w = textw(cr, buf);
 
 	// DRAW CPU
-	setfont(cr, "Sans 9");
 	pango_layout_set_text(dc.plo, buf, -1);
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_move_to(cr, dc.x, y);
