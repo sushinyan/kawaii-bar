@@ -2,8 +2,8 @@
 #include <gdk/gdk.h>
 #include <cairo.h>
 #include <pango/pango.h>
-#include <string.h> // for strtok()
-#include <stdlib.h> // for malloc()
+#include <string.h>
+#include <stdlib.h>
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -19,6 +19,7 @@
 /* init desktops state */
 static char desktop_status[] = {'O','f','f','f','f','f','f','f','f','f'};
 char *desktops[10] = {"1","2","3","4","5","6","7","8","9","0"};
+char *tiling_state = "Ltiled";
 
 typedef struct {
 	char *hour;
@@ -46,8 +47,6 @@ static Clock initclock(void);
 /* init stats stuff */
 FILE *infile;
 long jif1, jif2, jif3, jif4, lnum1, lnum2, lnum3, lnum4;
-
-char *tiling_state;
 
 typedef struct {
 	PangoLayout *plo;
@@ -187,10 +186,17 @@ draw_desktops(cairo_t *cr)
 
 		dc.x += dc.w;
 	}
-	dc.x += 5; // padding for tiling status
+	gdk_rgba_parse(&c, separator_color);
+	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
+	cairo_set_line_width(cr, 1);
+	dc.x += 5; // padding for tiling state
+	cairo_move_to(cr, dc.x, 4);
+	cairo_line_to(cr, dc.x, BARH - 4);
+	cairo_stroke(cr);
+	dc.x += 5;
 	setfont(cr, stats_font);
 	gdk_rgba_parse(&c, desktop_sel);
-	draw_text(cr, tiling_state, dc.x, y, c);
+	draw_text(cr, tiling_state, dc.x, 2, c);
 }
 
 static void
@@ -417,7 +423,6 @@ draw_progress_bar(cairo_t *cr, int percent, gboolean urgent)
 	if(percent != 0) {
 	// draw bar from beginning to progress
 		cairo_set_source_rgba(cr, fg.red, fg.green, fg.blue, fg.alpha);
-		//cairo_set_line_width(cr, 3);
 		cairo_move_to(cr, dc.x, 18);
 		cairo_line_to(cr, dc.x + PROGRESS_BAR_W * ((float)percent / 100), 18);
 		cairo_stroke(cr);
@@ -435,15 +440,7 @@ draw_stats(cairo_t *cr)
 	int w, h;
 	char buf[20];
 
-	cairo_surface_t *icon;	// free this later
-
-	// DRAW VOLUME ICON	
-	icon = cairo_image_surface_create_from_png("/usr/share/icons/kawaii-bar/vol.png");
-	cairo_rectangle(cr, dc.x, 0, dc.x + 20, 20);
-	cairo_set_source_surface(cr, icon, dc.x, 3);
-	cairo_fill(cr);
-	cairo_surface_destroy(icon);
-	dc.x += 20; // adjust for icon width
+	char *icon;	// free this later
 
 	// GET VOLUME
 	long max = 0, min = 0, vol = 0;
@@ -474,6 +471,18 @@ draw_stats(cairo_t *cr)
         if(handle)
                 snd_mixer_close(handle);
 
+	// DRAW VOLUME ICON
+	setfont(cr, icons_font);
+	icon = !(mute) ? vol_mute_icon : (int)vol * 100 / (int)max > VOL_HIGH ? vol_high_icon : vol_low_icon;
+	pango_layout_set_text(dc.plo, icon, -1);
+	gdk_rgba_parse(&c, icon_color);
+	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
+	cairo_move_to(cr, dc.x, 4);
+	pango_cairo_show_layout(cr, dc.plo);
+	gdk_rgba_parse(&c, stats_text);
+	dc.x += 20;
+
+	// DRAW VOLUME TEXT
 	setfont(cr, stats_font);
 	pango_layout_set_text(dc.plo, buf, -1);
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
@@ -483,17 +492,6 @@ draw_stats(cairo_t *cr)
 	// DRAW VOLUME PROGRESS BAR
 	draw_progress_bar(cr, !(mute) ? 0 : (int)vol * 100 / (int)max, FALSE);
 	dc.x += PROGRESS_BAR_W + 10; // adjust dc.x for progress bar + 10px pad
-
-	// DRAW CPU ICON
-	icon = cairo_image_surface_create_from_png("/usr/share/icons/kawaii-bar/cpu.png");
-
-	cairo_rectangle(cr, dc.x, 0, dc.x + 20, 20);
-	w = cairo_image_surface_get_width(icon);
-	h = cairo_image_surface_get_height(icon);
-	cairo_set_source_surface(cr, icon, dc.x, 3);
-	cairo_fill(cr);
-	cairo_surface_destroy(icon);
-	dc.x += 20; // adjust dc.x for icon width
 
 	// GET CPU
 	int num;
@@ -505,7 +503,18 @@ draw_stats(cairo_t *cr)
 	
 	dc.w = textw(cr, buf);
 
-	// DRAW CPU
+	// DRAW CPU ICON
+	setfont(cr, icons_font);
+	icon = cpu_icon;
+	pango_layout_set_text(dc.plo, icon, -1);
+	gdk_rgba_parse(&c, icon_color);
+	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
+	cairo_move_to(cr, dc.x, 4);
+	pango_cairo_show_layout(cr, dc.plo);
+	gdk_rgba_parse(&c, stats_text);
+	dc.x += 20;
+
+	// DRAW CPU TEXT
 	pango_layout_set_text(dc.plo, buf, -1);
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_move_to(cr, dc.x, y);
@@ -516,14 +525,6 @@ draw_stats(cairo_t *cr)
 
 	dc.x += PROGRESS_BAR_W + 10; // adjust dc.x for progress bar + 10px pad
 
-	// DRAW MEMORY ICON
-	icon = cairo_image_surface_create_from_png("/usr/share/icons/kawaii-bar/mem.png");
-	cairo_rectangle(cr, dc.x, 0, dc.x + 20, 20);
-	cairo_set_source_surface(cr, icon, dc.x, 3);
-	cairo_fill(cr);
-	cairo_surface_destroy(icon);
-	dc.x += 20; // adjust for icon width
-
 	// GET MEMORY
 	long buffers, cached, free, total;
         infile = fopen("/proc/meminfo", "r");
@@ -532,7 +533,18 @@ draw_stats(cairo_t *cr)
         num = 100 * (free + buffers + cached) / total;
         sprintf(buf, "%02d%%", num);
 
-	// DRAW MEMORY
+	// DRAW MEMORY ICON
+	setfont(cr, icons_font);
+	icon = mem_icon;
+	pango_layout_set_text(dc.plo, icon, -1);
+	gdk_rgba_parse(&c, icon_color);
+	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
+	cairo_move_to(cr, dc.x, 4);
+	pango_cairo_show_layout(cr, dc.plo);
+	gdk_rgba_parse(&c, stats_text);
+	dc.x += 20;
+
+	// DRAW MEMORY TEXT
 	pango_layout_set_text(dc.plo, buf, -1);
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_move_to(cr, dc.x, y);
@@ -542,14 +554,7 @@ draw_stats(cairo_t *cr)
 	draw_progress_bar(cr, num, FALSE);
 
 	dc.x += PROGRESS_BAR_W + 10; // adjust for progress bar width
-
-	// DRAW BATTERY ICON
-	icon = cairo_image_surface_create_from_png("/usr/share/icons/kawaii-bar/bat_full.png");
-	cairo_rectangle(cr, dc.x, 0, dc.x + 20, 20);
-	cairo_set_source_surface(cr, icon, dc.x, 3);
-	cairo_fill(cr);
-	cairo_surface_destroy(icon);
-
+	
 	// GET BATTERY
 	char state[8];
         long full = -1, now = -1, rate = -1, voltage = -1;
@@ -581,9 +586,19 @@ draw_stats(cairo_t *cr)
                 else
                         sprintf(buf, "%d%%, %02d:%02d", perc, hours, minutes);
         }
-	dc.x += 20; // adjust for icon width
 
-	// DRAW BATTERY STATUS
+	// DRAW BATTERY ICON
+	setfont(cr, icons_font);
+	icon = perc < BAT_LOW ? bat_low_icon : perc > BAT_HIGH ? bat_high_icon : bat_med_icon;
+	pango_layout_set_text(dc.plo, bat_high_icon, -1);
+	gdk_rgba_parse(&c, icon_color);
+	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
+	cairo_move_to(cr, dc.x, 4);
+	pango_cairo_show_layout(cr, dc.plo);
+	gdk_rgba_parse(&c, stats_text);
+	dc.x += 20;
+
+	// DRAW BATTERY TEXT
 	pango_layout_set_text(dc.plo, buf, -1);
 	cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
 	cairo_move_to(cr, dc.x, y);
